@@ -74,7 +74,9 @@ check(str_contains($invitationController, 'invitation.monthly_create_count'), 'i
 check(str_contains($invitationController, 'invitation.active_count'), 'publishing checks active invitation quota');
 $publicController = source($root . '/app/Controllers/PublicInvitationController.php');
 check(str_contains($publicController, 'application.max_count'), 'public applications check subscription quota');
-check(str_contains($publicController, 'youtube'), 'public invitation supports YouTube-only media policy');
+check(str_contains($invitationController, 'youtubeAllowed') && str_contains($publicController, 'youtube_url'), 'public invitation supports YouTube-only media policy');
+check(str_contains(source($root . '/app/Services/InvitationImageService.php'), 'MAX_UPLOAD_BYTES=1048576'), 'invitation images enforce the 1MB upload limit');
+check(str_contains(source($root . '/app/Services/InvitationImageService.php'), 'imagewebp'), 'invitation images are converted to WebP');
 $trackedEnv = shell_exec('git -C ' . escapeshellarg($root) . ' ls-files -- .env');
 check(trim((string) $trackedEnv) === '', 'real .env is not committed to the repository');
 check(str_contains(source($root . '/.gitignore'), "database/migrations/*.sql"), 'SQL migrations are explicitly tracked');
