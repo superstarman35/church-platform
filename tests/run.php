@@ -60,7 +60,8 @@ check(str_contains($service, 'beginTransaction'), 'church provisioning is transa
 check(str_contains($service, 'password_hash'), 'admin passwords are hashed');
 check(str_contains($service, 'createInvitationTrial'), 'church provisioning creates invitation trial');
 
-check(!is_file($root . '/.env'), 'real .env is not committed to the repository');
+$trackedEnv = shell_exec('git -C ' . escapeshellarg($root) . ' ls-files -- .env');
+check(trim((string) $trackedEnv) === '', 'real .env is not committed to the repository');
 check(str_contains(source($root . '/.gitignore'), "database/migrations/*.sql"), 'SQL migrations are explicitly tracked');
 
 if ($failures !== []) {
