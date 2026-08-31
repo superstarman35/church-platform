@@ -1,0 +1,106 @@
+name: Manual production deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root-test-password
+          MARIADB_DATABASE: church_platform
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_mysql, mbstring, json, gd
+          coverage: none
+
+      - name: Create test environment
+        run: cp .env.example .env
+
+      - name: Check PHP syntax
+        run: find app bin bootstrap config public resources routes tests -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Run migrations
+        run: php bin/migrate.php
+        env:
+          APP_ENV: testing
+          APP_DEBUG: "false"
+          SESSION_SECURE: "false"
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: church_platform
+          DB_USERNAME: root
+          DB_PASSWORD: root-test-password
+
+      - name: Run contract tests
+        run: php tests/run.php
+
+      - name: Run MariaDB integration tests
+        run: php tests/integration.php
+        env:
+          APP_ENV: testing
+          APP_DEBUG: "false"
+          SESSION_SECURE: "false"
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: church_platform
+          DB_USERNAME: root
+          DB_PASSWORD: root-test-password
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Install SSH credentials
+        shell: bash
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/deploy_key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/deploy_key" "$HOME/.ssh/known_hosts"
+
+      - name: Deploy main to iwinv
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -T \
+            -i "$HOME/.ssh/deploy_key" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "$DEPLOY_USER@$DEPLOY_HOST"
+
+      - name: Verify HTTPS
+        run: curl --fail --silent --show-error --max-time 15 https://mosaic-invite.cyou/login >/dev/null
