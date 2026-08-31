@@ -3,8 +3,6 @@
 declare(strict_types=1);
 
 use App\Core\Database;
-use PDO;
-
 $pdo = require dirname(__DIR__) . '/bootstrap/app.php';
 
 $pdo->exec('CREATE TABLE IF NOT EXISTS schema_migrations (migration VARCHAR(190) PRIMARY KEY, applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
