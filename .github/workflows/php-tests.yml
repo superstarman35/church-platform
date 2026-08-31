@@ -1,0 +1,63 @@
+name: PHP and MariaDB tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root-test-password
+          MARIADB_DATABASE: church_platform
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, json
+          coverage: none
+      - name: Create test environment
+        run: cp .env.example .env
+      - name: Check PHP syntax
+        run: find app bin bootstrap config public resources routes tests -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Run migrations
+        run: php bin/migrate.php
+        env:
+          APP_ENV: testing
+          APP_DEBUG: 'false'
+          SESSION_SECURE: 'false'
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: church_platform
+          DB_USERNAME: root
+          DB_PASSWORD: root-test-password
+      - name: Run contract tests
+        run: php tests/run.php
+      - name: Run MariaDB integration tests
+        run: php tests/integration.php
+        env:
+          APP_ENV: testing
+          APP_DEBUG: 'false'
+          SESSION_SECURE: 'false'
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: church_platform
+          DB_USERNAME: root
+          DB_PASSWORD: root-test-password

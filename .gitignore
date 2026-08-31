@@ -45,4 +45,4 @@ desktop.ini
 /tmp/
 *.sql
 *.sql.gz
-
+!/database/migrations/*.sql
