@@ -60,6 +60,21 @@ check(str_contains($service, 'beginTransaction'), 'church provisioning is transa
 check(str_contains($service, 'password_hash'), 'admin passwords are hashed');
 check(str_contains($service, 'createInvitationTrial'), 'church provisioning creates invitation trial');
 
+$invitationMigration = source($root . '/database/migrations/202608310002_invitation_admin.sql');
+foreach (['invitations', 'invitation_media', 'invitation_applications', 'invitation_daily_stats'] as $table) {
+    check(str_contains($invitationMigration, "CREATE TABLE {$table}"), "invitation migration creates {$table}");
+}
+check(substr_count($invitationMigration, 'church_id BIGINT UNSIGNED NOT NULL') >= 4, 'all invitation business tables require church_id');
+$invitationRepo = source($root . '/app/Repositories/InvitationRepository.php');
+check(substr_count($invitationRepo, 'church_id') >= 10, 'invitation repository consistently scopes tenant data');
+check(str_contains($invitationRepo, 'TenantContext $tenant'), 'invitation admin repository requires TenantContext');
+$invitationController = source($root . '/app/Controllers/InvitationAdminController.php');
+check(substr_count($invitationController, 'Csrf::verify') >= 4, 'invitation mutations verify CSRF');
+check(str_contains($invitationController, 'invitation.monthly_create_count'), 'invitation creation checks subscription quota');
+check(str_contains($invitationController, 'invitation.active_count'), 'publishing checks active invitation quota');
+$publicController = source($root . '/app/Controllers/PublicInvitationController.php');
+check(str_contains($publicController, 'application.max_count'), 'public applications check subscription quota');
+check(str_contains($publicController, 'youtube'), 'public invitation supports YouTube-only media policy');
 $trackedEnv = shell_exec('git -C ' . escapeshellarg($root) . ' ls-files -- .env');
 check(trim((string) $trackedEnv) === '', 'real .env is not committed to the repository');
 check(str_contains(source($root . '/.gitignore'), "database/migrations/*.sql"), 'SQL migrations are explicitly tracked');

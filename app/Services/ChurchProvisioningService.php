@@ -67,6 +67,11 @@ final class ChurchProvisioningService
             throw new RuntimeException('교회 또는 단체를 찾을 수 없습니다.');
         }
 
+        $entitlements = new SubscriptionEntitlementService($this->pdo);
+        $snapshot = $entitlements->snapshot($churchId);
+        $entitlements->assertUsable($snapshot);
+        $entitlements->assertBelow($snapshot, 'admin.max_count', $this->memberships->countActive($churchId), '현재 구독의 관리자 계정 한도를 초과했습니다.');
+
         $this->pdo->beginTransaction();
         try {
             $user = $this->users->findByEmail($adminData['email']);

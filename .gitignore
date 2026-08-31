@@ -46,3 +46,6 @@ desktop.ini
 *.sql
 *.sql.gz
 !/database/migrations/*.sql
+
+/storage/uploads/*
+!/storage/uploads/.gitkeep

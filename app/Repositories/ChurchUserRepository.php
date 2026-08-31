@@ -26,6 +26,12 @@ final class ChurchUserRepository
         return (bool) $statement->fetchColumn();
     }
 
+    public function countActive(int $churchId): int
+    {
+        $statement = $this->pdo->prepare("SELECT COUNT(*) FROM church_users WHERE church_id = :church_id AND status IN ('invited', 'active')");
+        $statement->execute(['church_id' => $churchId]);
+        return (int) $statement->fetchColumn();
+    }
     public function listForTenant(TenantContext $tenant): array
     {
         $statement = $this->pdo->prepare('SELECT u.id, u.name, u.email, u.status, cu.role, cu.status membership_status, cu.created_at FROM church_users cu JOIN users u ON u.id = cu.user_id WHERE cu.church_id = :church_id ORDER BY cu.id');
