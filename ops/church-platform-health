@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+APP_DIR="${APP_DIR:-/var/www/church-platform}"
+MAX_DISK_PERCENT="${MAX_DISK_PERCENT:-85}"
+LOG_FILE="${LOG_FILE:-/var/log/church-platform-health.log}"
+log(){ printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*" | tee -a "$LOG_FILE"; }
+fail(){ log "HEALTH_FAILED $*"; exit 1; }
+systemctl is-active --quiet nginx || fail "nginx inactive"
+systemctl is-active --quiet mariadb || fail "mariadb inactive"
+systemctl list-units --type=service --state=active 'php*-fpm.service' --no-legend | grep -q . || fail "PHP-FPM inactive"
+[[ -r "$APP_DIR/.env" ]] || fail ".env unreadable"
+php "$APP_DIR/bin/migrate.php" >/dev/null || fail "database check failed"
+curl --fail --silent --show-error --max-time 10 -H 'Host: localhost' http://127.0.0.1/login >/dev/null || fail "HTTP check failed"
+disk="$(df -P "$APP_DIR" | awk 'NR==2{gsub(/%/,"",$5);print $5}')"
+((disk < MAX_DISK_PERCENT)) || fail "disk=${disk}%"
+log "HEALTH_OK disk=${disk}%"

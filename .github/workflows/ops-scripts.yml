@@ -1,0 +1,22 @@
+name: Validate operations scripts
+on:
+  push:
+    paths:
+      - "ops/**"
+      - ".github/workflows/ops-scripts.yml"
+  pull_request:
+    paths:
+      - "ops/**"
+      - ".github/workflows/ops-scripts.yml"
+permissions:
+  contents: read
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash syntax
+        run: bash -n ops/install-server.sh ops/server-transfer.sh ops/church-platform-backup ops/church-platform-health
+      - name: Secret pattern guard
+        run: |
+          ! grep -RIE ''(BEGIN (RSA|OPENSSH) PRIVATE KEY|DB_PASSWORD=[^c$]|[0-9]{1,3}(\.[0-9]{1,3}){3})'' ops docs/SERVER_INSTALL_AND_MIGRATION.md

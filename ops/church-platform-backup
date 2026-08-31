@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+APP_DIR="${APP_DIR:-/var/www/church-platform}"
+BACKUP_ROOT="${BACKUP_ROOT:-/var/backups/church-platform}"
+RETENTION_DAYS="${RETENTION_DAYS:-7}"
+STAMP="$(date +%Y%m%d_%H%M%S)"
+TARGET="$BACKUP_ROOT/$STAMP"; TMP="$BACKUP_ROOT/.$STAMP.tmp"
+log(){ printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"; }
+fail(){ log "FAILED $*" >&2; exit 1; }
+[[ $EUID -eq 0 ]] || fail "run as root"
+[[ -r "$APP_DIR/.env" ]] || fail ".env unreadable"
+[[ "$RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]] || fail "bad retention"
+set -a; source "$APP_DIR/.env"; set +a
+: "${DB_HOST:?}" "${DB_PORT:?}" "${DB_DATABASE:?}" "${DB_USERNAME:?}" "${DB_PASSWORD:?}"
+install -d -o root -g root -m 700 "$BACKUP_ROOT"; mkdir -m 700 "$TMP"
+trap 'rm -rf -- "$TMP"' EXIT
+cnf="$TMP/client.cnf"
+printf '[client]\nhost=%s\nport=%s\nuser=%s\npassword=%s\n' "$DB_HOST" "$DB_PORT" "$DB_USERNAME" "$DB_PASSWORD" > "$cnf"
+mariadb-dump --defaults-extra-file="$cnf" --single-transaction --routines --triggers "$DB_DATABASE" | gzip -9 > "$TMP/database.sql.gz"
+tar -czf "$TMP/uploads.tar.gz" -C "$APP_DIR/storage" uploads
+rm -f "$cnf"; (cd "$TMP" && sha256sum database.sql.gz uploads.tar.gz > SHA256SUMS)
+mv "$TMP" "$TARGET"; trap - EXIT
+find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -name '20??????_??????' -mtime "+$RETENTION_DAYS" -print -exec rm -rf -- {} +
+log "SUCCESS $TARGET"
