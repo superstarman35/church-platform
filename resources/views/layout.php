@@ -16,6 +16,7 @@ $tenantNav = [
 ];
 $platformNav = [
     ['운영 대시보드', '/control', '⌂'], ['교회·단체 관리', '/control/churches', '▦'], ['체험 계정', '/control/trials', '◷'], ['고객지원', '/control/support', '?'],
+    ['공개 문의', '/control/public-contacts', '✉'],
 ];
 ?><!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title><?= View::e($title ?? '관리자') ?></title><link rel="stylesheet" href="/assets/admin.css"><link rel="stylesheet" href="/assets/design-presets.css"></head>

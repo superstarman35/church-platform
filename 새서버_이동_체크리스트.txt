@@ -1,0 +1,230 @@
+교회 플랫폼 새 서버 설치·이전 체크리스트
+========================================
+
+기준 환경: Ubuntu 24.04 LTS / Nginx / PHP 8.3 / MariaDB
+저장소: https://github.com/superstarman35/church-platform
+
+중요 원칙
+---------
+- 비밀번호, 토큰, SSH 개인키는 문서나 GitHub에 기록하지 않는다.
+- 이전 전에 백업 무결성과 실제 복원을 모두 시험한다.
+- 새 서버 검증이 끝날 때까지 기존 서버를 삭제하지 않는다.
+- 최종 이전 중에는 점검 모드로 전환해 양쪽 서버의 동시 입력을 막는다.
+
+1. 이동 전 체크
+---------------
+[ ] Ubuntu 24.04 LTS, CPU, 메모리, 디스크, 공인 IP 확인
+[ ] sudo 권한 일반 사용자와 SSH 키 로그인 확인
+[ ] 도메인/DNS 관리 권한과 TTL 확인
+[ ] .env를 Git 외부의 안전한 장소에 별도 보관
+[ ] 기존 서버 코드 상태, DB·업로드 용량 확인
+[ ] 최근 백업으로 임시 DB 복원 시험 완료
+[ ] 이전 시간과 롤백 기준 결정
+
+  cd /var/www/church-platform
+  git status --short
+  git log -1 --oneline
+  sudo du -sh /var/lib/mysql/church_platform
+  sudo du -sh storage/uploads
+  df -h /
+  systemctl is-active nginx php8.3-fpm mariadb
+
+2. 기존 서버 백업 생성
+----------------------
+  cd /var/www/church-platform
+  sudo bash ops/server-transfer.sh export /var/backups/church-transfer
+  sudo find /var/backups/church-transfer -maxdepth 2 -type f -ls
+
+백업 폴더 필수 파일:
+[ ] database.sql.gz
+[ ] uploads.tar.gz
+[ ] SHA256SUMS
+
+  cd /var/backups/church-transfer/백업폴더명
+  sudo sha256sum -c SHA256SUMS
+  sudo gzip -t database.sql.gz
+  sudo tar -tzf uploads.tar.gz > /dev/null
+
+.env는 백업 압축에 넣지 않고 별도로 안전하게 전달한다.
+
+3. 새 서버로 전송
+-----------------
+아래 사용자, 서버, 폴더 값은 실제 값으로 바꾼다.
+
+  rsync -avz -e ssh /var/backups/church-transfer/ 사용자@새서버:/tmp/church-transfer/
+  scp /var/www/church-platform/.env 사용자@새서버:/tmp/church.env
+  chmod 600 /tmp/church.env
+
+[ ] 전송 후 SHA256SUMS 재검증
+[ ] .env가 웹 공개 폴더에 없는지 확인
+[ ] SSH 개인키를 서버나 저장소에 복사하지 않았는지 확인
+
+4. 새 서버 자동 설치
+--------------------
+  sudo apt update
+  sudo apt install -y git
+  git clone https://github.com/superstarman35/church-platform.git /tmp/church-platform-installer
+  cd /tmp/church-platform-installer
+
+.env 확인:
+[ ] APP_ENV=production
+[ ] APP_DEBUG=false
+[ ] APP_URL=https://사용할도메인
+[ ] SESSION_SECURE=true (HTTPS 적용 후)
+[ ] DB_HOST=127.0.0.1
+[ ] DB_DATABASE, DB_USERNAME, DB_PASSWORD 설정
+
+  sudo bash ops/install-server.sh \
+    --domain 사용할도메인 \
+    --repo https://github.com/superstarman35/church-platform.git \
+    --env-file /tmp/church.env \
+    --enable-firewall
+
+  systemctl is-active nginx php8.3-fpm mariadb
+  sudo nginx -t
+  sudo ufw status verbose
+  php -v
+  mariadb --version
+
+5. 데이터 복원
+--------------
+  cd /var/www/church-platform
+  sudo bash ops/server-transfer.sh verify /tmp/church-transfer/백업폴더명
+
+대상 DB가 맞는지 확인한 뒤 교체 복원한다.
+
+  sudo bash ops/server-transfer.sh restore /tmp/church-transfer/백업폴더명 --replace
+  php bin/migrate.php
+  sudo chown -R churchadmin:www-data storage
+  sudo find storage -type d -exec chmod 2770 {} \;
+  sudo find storage -type f -exec chmod 660 {} \;
+
+[ ] 테이블과 주요 데이터 건수 확인
+[ ] 플랫폼 관리자와 교회 관리자 계정 확인
+[ ] church_id 연결 및 교회 간 데이터 격리 확인
+[ ] 초대장, 신청자, 업로드 이미지 확인
+
+6. DNS 변경 전 기능 점검
+------------------------
+  curl --resolve 사용할도메인:80:새서버IP http://사용할도메인/login -I
+
+[ ] /login 및 플랫폼 관리자 MFA
+[ ] /control 운영 대시보드
+[ ] 교회 관리자 로그인
+[ ] 초대장 생성·수정·복제·게시·종료
+[ ] 공개 초대장 조회와 신청자 등록
+[ ] 이미지 업로드·삭제
+[ ] 트래픽·저장용량 표시
+[ ] 다른 교회 데이터 접근 차단
+
+  sudo tail -n 100 /var/log/nginx/error.log
+  sudo tail -n 100 /var/log/church-platform-deploy.log
+  sudo tail -n 100 /var/log/church-platform-health.log
+
+7. DNS 및 HTTPS 전환
+-------------------
+DNS A 레코드를 새 서버 IP로 변경한다.
+
+  A  @    새서버IP
+  A  www  새서버IP
+
+  getent hosts 사용할도메인
+  getent hosts www.사용할도메인
+
+DNS 반영 후:
+
+  sudo apt install -y certbot python3-certbot-nginx
+  sudo certbot --nginx --redirect -d 사용할도메인 -d www.사용할도메인
+  curl -I https://사용할도메인/login
+  systemctl is-active certbot.timer
+
+인증서 발급 직후 renew --dry-run을 반복하지 않는다.
+
+8. 백업·상태 점검 자동화
+------------------------
+일일 백업은 7일 보관 후 오래된 순서로 삭제한다.
+
+  sudo systemctl enable --now church-platform-backup.timer
+  systemctl list-timers church-platform-backup.timer --no-pager
+  sudo systemctl start church-platform-backup.service
+  sudo tail -n 20 /var/log/church-platform-backup.log
+
+[ ] DB·업로드 압축파일 무결성 확인
+[ ] 임시 DB 복원 시험
+[ ] 7일 보관 및 순차 삭제 설정 확인
+
+  sudo systemctl enable --now church-platform-health.timer
+  systemctl list-timers church-platform-health.timer --no-pager
+  sudo tail -n 20 /var/log/church-platform-health.log
+
+9. GitHub 자동배포 갱신
+----------------------
+새 서버용 배포 키를 새로 발급하는 것을 권장한다.
+
+[ ] deploybot 전용 사용자와 공개키 등록
+[ ] authorized_keys 명령을 배포 스크립트로 제한
+[ ] 배포 스크립트 root 소유, 권한 700
+[ ] sudoers에서 지정 배포 명령만 허용
+
+GitHub Actions Secrets:
+  DEPLOY_HOST        새 서버 IP 또는 호스트명
+  DEPLOY_USER        deploybot
+  DEPLOY_SSH_KEY     새 배포용 SSH 개인키
+  DEPLOY_KNOWN_HOSTS 새 서버 ssh-keyscan 결과
+
+[ ] 수동 배포 워크플로 성공
+[ ] CI 문법·마이그레이션·통합 테스트 성공
+[ ] 배포 전 백업과 배포 로그 확인
+[ ] 배포 후 HTTPS 확인 성공
+
+10. 전환 후 24~48시간 확인
+--------------------------
+[ ] 기존 서버를 대기 상태로 유지
+[ ] 로그인·초대장·신청자 기능 확인
+[ ] CPU, 메모리, Swap, 디스크 확인
+[ ] Nginx, PHP-FPM, MariaDB 오류 확인
+[ ] 트래픽·저장용량 집계 확인
+[ ] 백업·상태점검·SSL 타이머 실제 실행 확인
+[ ] 주요 통신망 DNS 전파 완료 확인
+
+  uptime
+  free -h
+  swapon --show
+  df -h
+  systemctl --failed
+  sudo journalctl -p err --since today --no-pager
+
+11. 문제 발생 시 롤백
+---------------------
+1) 새 서버의 쓰기 작업을 중단한다.
+2) DNS A 레코드를 기존 서버 IP로 되돌린다.
+3) 기존 서버 Nginx, PHP-FPM, MariaDB 상태를 확인한다.
+4) 새 서버에 추가된 데이터가 있다면 별도 백업한다.
+5) 원인 수정 후 백업 검증과 복원 시험부터 다시 수행한다.
+
+양쪽 서버에서 동시에 입력을 받으면 데이터가 갈라질 수 있으므로 금지한다.
+
+12. 최종 완료 기준
+------------------
+[ ] HTTPS 도메인 접속 정상
+[ ] 플랫폼 관리자 로그인·MFA 정상
+[ ] 교회 관리자 church_id 데이터 격리 정상
+[ ] 초대장 생성·게시·조회·신청 정상
+[ ] 이미지와 파일 정상
+[ ] DB 마이그레이션 최신 상태
+[ ] GitHub 자동배포 정상
+[ ] 일일 백업과 7일 보관 정상
+[ ] 상태 점검 타이머 정상
+[ ] 반복되는 치명적 오류 없음
+[ ] 기존 서버 또는 최종 롤백 백업 보존
+
+관련 파일
+---------
+- ops/install-server.sh                 새 서버 자동 설치
+- ops/server-transfer.sh                백업 검증·내보내기·복원
+- ops/church-platform-backup            일일 백업 및 7일 보관
+- ops/church-platform-health            서비스 상태 점검
+- docs/SERVER_INSTALL_AND_MIGRATION.md  상세 설치·이전 문서
+- .github/workflows/ops-scripts.yml     운영 스크립트 문법 검사
+
+실행 전에는 저장소의 최신 문서와 각 스크립트 옵션을 다시 확인한다.

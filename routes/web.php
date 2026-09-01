@@ -15,12 +15,14 @@ use App\Controllers\MfaController;
 use App\Controllers\QuestionAdminController;
 use App\Controllers\PlatformDashboardController;
 use App\Controllers\PlatformSupportController;
+use App\Controllers\PlatformPublicContactController;
 use App\Controllers\PlatformTrialController;
 use App\Controllers\PublicInvitationController;
 use App\Controllers\TenantDashboardController;
 use App\Controllers\TrafficAdminController;
 use App\Controllers\AnalyticsAdminController;
 use App\Controllers\SubscriptionController;
+use App\Controllers\PublicContactController;
 use App\Controllers\SupportController;
 use App\Core\Auth;
 use App\Core\Response;
@@ -46,6 +48,75 @@ return static function (Router $router, PDO $pdo): void {
             'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
         ], 'home.layout');
     });
+    $router->get('/templates', static function () use ($auth): void {
+        View::render('home.templates', [
+            'title' => '기독교 모바일 초대장 디자인',
+            'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
+            'pageCss' => '/assets/templates.css?v=20260902-1',
+        ], 'home.layout');
+    });
+    $router->get('/features', static function () use ($auth): void {
+        View::render('home.features', [
+            'title' => '기독교 모바일 초대장 주요 기능',
+            'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
+            'pageCss' => '/assets/features.css?v=20260902-1',
+        ], 'home.layout');
+    });
+    $router->get('/pricing', static function () use ($auth): void {
+        View::render('home.pricing', [
+            'title' => '기독교 모바일 초대장 요금 안내',
+            'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
+            'pageCss' => '/assets/pricing.css?v=20260902-1',
+        ], 'home.layout');
+    });
+    $router->get('/about', static function () use ($auth): void {
+        View::render('home.about', [
+            'title' => '서비스 소개',
+            'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
+            'pageCss' => '/assets/info.css?v=20260902-1',
+        ], 'home.layout');
+    });
+    $router->get('/faq', static function () use ($auth): void {
+        View::render('home.faq', [
+            'title' => 'FAQ',
+            'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
+            'pageCss' => '/assets/info.css?v=20260902-1',
+        ], 'home.layout');
+    });
+    $router->get('/guide', static function () use ($auth): void {
+        View::render('home.guide', [
+            'title' => '서비스 시작 가이드',
+            'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
+            'pageCss' => '/assets/info.css?v=20260902-1',
+        ], 'home.layout');
+    });
+    $router->get('/terms', static function () use ($auth): void {
+        View::render('home.terms', [
+            'title' => '이용약관',
+            'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
+            'pageCss' => '/assets/info.css?v=20260902-1',
+        ], 'home.layout');
+    });
+    $router->get('/privacy', static function () use ($auth): void {
+        View::render('home.privacy', [
+            'title' => '개인정보처리방침',
+            'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
+            'pageCss' => '/assets/info.css?v=20260902-1',
+        ], 'home.layout');
+    });
+    $router->get('/support', static function () use ($auth): void {
+        View::render('home.support', [
+            'title' => '고객지원',
+            'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
+            'pageCss' => '/assets/info.css?v=20260902-1',
+        ], 'home.layout');
+    });
+    $router->get('/contact', static function () use ($auth): void {
+        (new PublicContactController($pdo))->index([
+            'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
+        ]);
+    });
+    $router->post('/contact', static fn() => (new PublicContactController($pdo))->store());
     $router->get('/login', static fn () => $authController->showLogin());
     $router->post('/login', static fn () => $authController->login());
     $router->get('/mfa', static fn () => $mfaController->show());
@@ -72,6 +143,10 @@ return static function (Router $router, PDO $pdo): void {
     $router->get('/control/churches/{churchId}/admins/create', static fn (array $p) => $churchController->createAdmin((int)$p['churchId']), $platform);
     $router->post('/control/churches/{churchId}/admins', static fn (array $p) => $churchController->storeAdmin((int)$p['churchId']), $platform);
     $router->get('/control/support', static fn () => (new PlatformSupportController($pdo))->index(), $platform);
+    $router->get('/control/public-contacts', static fn () => (new PlatformPublicContactController($pdo))->index(), $platform);
+    $router->get('/control/public-contacts/export', static fn () => (new PlatformPublicContactController($pdo))->export(), $platform);
+    $router->get('/control/public-contacts/{id}', static fn (array $p) => (new PlatformPublicContactController($pdo))->show((int)$p['id']), $platform);
+    $router->post('/control/public-contacts/{id}/status', static fn (array $p) => (new PlatformPublicContactController($pdo))->updateStatus((int)$p['id']), $platform);
     $router->post('/control/support/{id}/review', static fn (array $p) => (new PlatformSupportController($pdo))->review((int)$p['id']), $platform);
     $router->get('/control/trials', static fn () => (new PlatformTrialController($pdo))->index(), $platform);
     $router->post('/control/trials/{id}/extend', static fn (array $p) => (new PlatformTrialController($pdo))->operate((int)$p['id'], 'extend'), $platform);
