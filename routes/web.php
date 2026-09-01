@@ -25,6 +25,7 @@ use App\Controllers\SupportController;
 use App\Core\Auth;
 use App\Core\Response;
 use App\Core\Router;
+use App\Core\View;
 use PDO;
 
 return static function (Router $router, PDO $pdo): void {
@@ -40,7 +41,10 @@ return static function (Router $router, PDO $pdo): void {
     $publicInvitation = new PublicInvitationController($pdo);
 
     $router->get('/', static function () use ($auth): void {
-        Response::redirect($auth->user() === null ? '/login' : ($auth->isPlatform() ? '/control' : '/admin'));
+        View::render('home.index', [
+            'title' => '마음을 잇는 기독교 모바일 초대장',
+            'dashboardUrl' => $auth->user() === null ? null : ($auth->isPlatform() ? '/control' : '/admin'),
+        ], 'home.layout');
     });
     $router->get('/login', static fn () => $authController->showLogin());
     $router->post('/login', static fn () => $authController->login());

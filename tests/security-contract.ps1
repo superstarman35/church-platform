@@ -101,5 +101,10 @@ Check ($backup.Contains('aes-256-cbc') -and $backup.Contains('pbkdf2') -and $bac
 Check ($backup.IndexOf('tar -tzf') -lt $backup.IndexOf('-mtime +7') -and $backup.Contains('BACKUP_EXTERNAL_DIR')) 'retention runs only after verification in external storage'
 Check ($restore.Contains('RESTORE_TEST_DB') -and $restore.Contains('Refusing to restore into the application database') -and $restore.Contains('sha256sum -c')) 'restore drill refuses production database and verifies checksum'
 Check ($envExample.Contains('BACKUP_PASSPHRASE') -and $envExample.Contains('RESTORE_TEST_DB')) 'backup secrets and restore target use environment configuration'
+$homeView=Read 'resources\views\home\index.php';$homeLayout=Read 'resources\views\home\layout.php';$homeCss=Read 'public\assets\home.css'
+Check ($routes.Contains("View::render('home.index'") -and $routes.Contains("'home.layout'")) 'public root renders the landing page'
+Check ($homeLayout.Contains('/assets/home.css') -and $homeCss.Contains('PretendardVariable.woff2')) 'landing page self-hosts Pretendard'
+Check ($homeView.Contains('id="templates"') -and $homeView.Contains('id="features"') -and $homeView.Contains('id="pricing"')) 'landing page includes templates features and pricing'
+Check ($homeCss.Contains('.js .reveal')) 'landing content remains visible without JavaScript'
 if ($failures.Count -gt 0) { throw "$($failures.Count) contract test(s) failed: $($failures -join ', ')" }
 Write-Output "OK $passes contract tests passed."
