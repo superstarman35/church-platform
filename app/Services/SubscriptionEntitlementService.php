@@ -39,6 +39,14 @@ final class SubscriptionEntitlementService
                 ];
             }
         }
+        $overrides = $this->pdo->prepare('SELECT feature_code, extra_limit FROM quota_overrides WHERE church_id=:church_id');
+        $overrides->execute(['church_id' => $churchId]);
+        foreach ($overrides->fetchAll() as $override) {
+            $code = (string) $override['feature_code'];
+            if (isset($features[$code]) && $features[$code]['limit'] !== null) {
+                $features[$code]['limit'] += (int) $override['extra_limit'];
+            }
+        }
         $first = $rows[0];
         $expired = $first['status'] === 'expired'
             || ($first['status'] === 'trialing' && $first['trial_ends_at'] !== null && strtotime((string) $first['trial_ends_at']) < time());

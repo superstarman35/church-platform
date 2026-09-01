@@ -1,0 +1,22 @@
+CREATE TABLE support_tickets (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    church_id BIGINT UNSIGNED NOT NULL,
+    requester_user_id BIGINT UNSIGNED NOT NULL,
+    ticket_type ENUM('question','error','feature') NOT NULL DEFAULT 'question',
+    priority ENUM('normal','high','urgent') NOT NULL DEFAULT 'normal',
+    subject VARCHAR(190) NOT NULL,
+    body TEXT NOT NULL,
+    related_url VARCHAR(500) NULL,
+    occurred_at DATETIME NULL,
+    status ENUM('open','in_progress','answered','closed') NOT NULL DEFAULT 'open',
+    assigned_user_id BIGINT UNSIGNED NULL,
+    response_summary TEXT NULL,
+    answered_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_support_tickets_church FOREIGN KEY (church_id) REFERENCES churches(id),
+    CONSTRAINT fk_support_tickets_requester FOREIGN KEY (requester_user_id) REFERENCES users(id),
+    CONSTRAINT fk_support_tickets_assignee FOREIGN KEY (assigned_user_id) REFERENCES users(id),
+    INDEX idx_support_tickets_church_status (church_id, status, created_at),
+    INDEX idx_support_tickets_platform_queue (status, priority, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

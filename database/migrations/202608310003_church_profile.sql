@@ -1,0 +1,20 @@
+CREATE TABLE church_profiles (
+    church_id BIGINT UNSIGNED PRIMARY KEY,
+    english_name VARCHAR(150) NULL,
+    short_description VARCHAR(500) NULL,
+    representative_name VARCHAR(100) NULL,
+    representative_title VARCHAR(50) NULL,
+    postal_code VARCHAR(10) NULL,
+    address_line1 VARCHAR(255) NULL,
+    address_detail VARCHAR(150) NULL,
+    map_url VARCHAR(500) NULL,
+    website_url VARCHAR(500) NULL,
+    youtube_url VARCHAR(500) NULL,
+    instagram_url VARCHAR(500) NULL,
+    facebook_url VARCHAR(500) NULL,
+    updated_by BIGINT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_church_profiles_church FOREIGN KEY (church_id) REFERENCES churches(id) ON DELETE CASCADE,
+    CONSTRAINT fk_church_profiles_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

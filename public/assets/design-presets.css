@@ -1,0 +1,10 @@
+.color-forest{--design-primary:#174e37;--design-secondary:#2f8460;--design-surface:#f5f8f6}
+.color-navy{--design-primary:#17345f;--design-secondary:#3566a6;--design-surface:#f2f6fb}
+.color-rose{--design-primary:#7a3147;--design-secondary:#bd607d;--design-surface:#fff3f6}
+.color-sand{--design-primary:#765832;--design-secondary:#b28b55;--design-surface:#fbf6ed}
+.invite .hero,.design-preview{background:linear-gradient(145deg,var(--design-primary,#174e37),var(--design-secondary,#2f8460));color:#fff}
+.invite .details{background:var(--design-surface,#f5f8f6)}
+.invite .public-actions a,.invite .public-actions button,.invite .apply button,.design-preview button{background:var(--design-primary,#174e37)}
+.font-sans{font-family:Pretendard,"Noto Sans KR",system-ui,sans-serif}.font-serif{font-family:"Noto Serif KR",Georgia,serif}.font-rounded{font-family:"Arial Rounded MT Bold",Pretendard,system-ui,sans-serif}
+.button-rounded .public-actions a,.button-rounded .public-actions button,.button-rounded .apply button,.button-rounded button{border-radius:10px}.button-pill .public-actions a,.button-pill .public-actions button,.button-pill .apply button,.button-pill button{border-radius:999px}.button-square .public-actions a,.button-square .public-actions button,.button-square .apply button,.button-square button{border-radius:0}
+.design-editor{display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:24px}.design-preview{min-height:320px;padding:32px;display:grid;align-content:center;text-align:center;border-radius:16px}.design-preview.square{aspect-ratio:1}.design-preview.landscape{min-height:220px;aspect-ratio:16/9}.design-preview button{border:1px solid #fff;color:#fff;padding:10px;margin-top:18px}@media(max-width:760px){.design-editor{grid-template-columns:1fr}}

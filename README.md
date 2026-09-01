@@ -82,6 +82,24 @@ Windows에서 PHP 설치 전 구조·보안 계약 검사:
 powershell -ExecutionPolicy Bypass -File tests/security-contract.ps1
 ```
 
+체험 자동 만료 작업은 운영 서버의 cron에서 10분마다 실행한다. 중복 실행되어도 `trialing` 상태이면서 종료 시각이 지난 구독만 처리하며, 데이터는 삭제하지 않는다.
+
+```cron
+*/10 * * * * cd /var/www/church-platform && /usr/bin/php bin/expire-trials.php 100 >> storage/logs/expire-trials.log 2>&1
+```
+
+DB와 업로드 파일의 암호화 백업은 외부 마운트 경로에 매일 생성한다. 새 백업의 복호화·압축 검증과 체크섬 생성이 모두 성공한 뒤에만 7일 초과 파일을 삭제한다.
+
+```cron
+20 2 * * * cd /var/www/church-platform && bin/backup.sh >> storage/logs/backup.log 2>&1
+```
+
+정기 복구 시험은 운영 DB와 다른 빈 테스트 DB를 `RESTORE_TEST_DB`로 지정한 뒤 실행한다.
+
+```bash
+bin/restore-test.sh /mnt/external-backups/church-platform/church-backup-YYYYMMDDTHHMMSSZ.tar.gz.enc
+```
+
 실제 MariaDB 통합 테스트는 `.env`에 테스트 전용 DB를 지정한 뒤 마이그레이션과 로그인·교회 격리 흐름으로 수행한다. 운영 DB를 테스트에 사용하지 않는다.
 
 ## 다음 개발 단계
