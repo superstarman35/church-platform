@@ -106,5 +106,8 @@ Check ($routes.Contains("View::render('home.index'") -and $routes.Contains("'hom
 Check ($homeLayout.Contains('/assets/home.css') -and $homeCss.Contains('PretendardVariable.woff2')) 'landing page self-hosts Pretendard'
 Check ($homeView.Contains('id="templates"') -and $homeView.Contains('id="features"') -and $homeView.Contains('id="pricing"')) 'landing page includes templates features and pricing'
 Check ($homeCss.Contains('.js .reveal')) 'landing content remains visible without JavaScript'
+Check (-not ($homeCss -match '[\x00-\x08\x0B\x0C\x0E-\x1F]') -and $homeCss.Contains('content:"\2713"')) 'landing CSS contains no parser-breaking control characters'
+Check ($homeView.Contains('/assets/images/home/invitation-hero.webp') -and $homeView.Contains('/assets/images/home/community-preparation.webp') -and $homeView.Contains('/assets/images/home/youth-welcome.webp')) 'landing page links generated optimized imagery'
+Check ((Test-Path (Join-Path $root 'public\assets\images\home\invitation-hero.webp')) -and (Test-Path (Join-Path $root 'public\assets\images\home\community-preparation.webp')) -and (Test-Path (Join-Path $root 'public\assets\images\home\youth-welcome.webp'))) 'landing generated imagery exists in public assets'
 if ($failures.Count -gt 0) { throw "$($failures.Count) contract test(s) failed: $($failures -join ', ')" }
 Write-Output "OK $passes contract tests passed."
